@@ -5,6 +5,9 @@ import os
 import sys
 from setuptools import find_packages, setup
 from distutils.util import convert_path
+from grpc_tools import protoc
+import shlex
+from glob import glob
 
 superpkg = 'xlab'
 pkgname = 'pygrpc'  # this is imported with 'import pygrpc'
@@ -28,7 +31,8 @@ def package_files(directories):
                 paths.append(os.path.join('..', path, filename))
     return paths
 
-def compile_protobufs(pkgname='pygrpc', protod='proto'):
+
+def compile_protobufs(dirname='pygrpc', protod='proto'):
     """compile the protobuf files.
     A few notes:
         - Protoc/protobuf is VERY TOUCHY when it comes to python, paths, and
@@ -44,17 +48,28 @@ def compile_protobufs(pkgname='pygrpc', protod='proto'):
     python -m grpc_tools.protoc --proto_path=pygrpc/proto --python_out=. \
         --grpc_python_out=. pygrpc/proto/pygrpc/*.proto
     """
-    from grpc_tools import protoc
-    import shlex
-    proto_path = os.path.join(pkgname, protod)
-    out = protoc.main(shlex.split(
-        "--proto_path={proto_path} "
-        "--python_out={out} "
-        "--grpc_python_out={out} "
-        "./{proto_path}/time.proto".format(proto_path=proto_path, out='.')))
-    if out:
-        raise RuntimeError('Protobuf failed. Setup with --verbose to see why')
 
+    proto_path = os.path.join(dirname, protod)
+    file_path = os.path.join('.', proto_path, '{filename}')
+
+    target = './{proto_path}/time.proto'.format(proto_path=proto_path)
+    cmd = "--proto_path={proto_path} " \
+          "--python_out={out} " \
+          "--grpc_python_out={out} " \
+          "{target}".format(proto_path=proto_path, out='.', target='{target}')
+    filenames = glob(file_path.format(filename='*.proto'))
+    print('<compile_pb> {}'.format(proto_path))
+    print('<compile_pb> {}'.format(filenames))
+    print('<compile_pb> {}'.format(cmd))
+
+    for fn in filenames:
+        cmdf = cmd.format(target=fn)
+        print('<compile_pb> protoc {}'.format(cmdf))
+
+        out = protoc.main(shlex.split(cmdf))
+        if out:
+            raise RuntimeError('Protobuf failed. Run Setup with --verbose '
+                               'to see why')
 
 data_files = []
 
